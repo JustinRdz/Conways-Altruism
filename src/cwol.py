@@ -1,3 +1,4 @@
+import random
 import pygame
 import numpy as np
 import time
@@ -5,6 +6,10 @@ import colorsys
 
 # Initialize Pygame
 pygame.init()
+font = pygame.font.SysFont("monospace", 24)
+generation = 0
+altruistic_count = 0
+altruism_rate = 0.5
 
 # Screen dimensions
 info = pygame.display.Info()
@@ -17,8 +22,9 @@ screen = pygame.display.set_mode(
 )
 
 # Colors
-WHITE = (128, 128, 128)
+WHITE = (255, 255, 255)
 BLACK = (25, 25, 25)
+GREEN = (0, 255, 0)
 
 pygame.display.set_caption("CWOL")
 t = 0
@@ -36,9 +42,7 @@ offset_x = (SCREEN_WIDTH  - map_width)  // 2
 offset_y = (SCREEN_HEIGHT - map_height) // 2
 
 
-# ===============================
 # Cell class
-# ===============================
 class Cell:
     def __init__(self, alive=0, energy=0, altruistic=False):
         self.alive = alive
@@ -49,40 +53,19 @@ class Cell:
         return Cell(self.alive, self.energy, self.altruistic)
 
 
-# ===============================
 # Grid of cells
-# ===============================
 grid = np.empty((nxC, nyC), dtype=object)
 for x in range(nxC):
     for y in range(nyC):
         grid[x, y] = Cell()
+        grid[x, y].energy = 5
+        # if random.random() < altruism_rate:
+        #     grid[x, y].altruistic = True
+        #     altruistic_count += 1
 
+# Energy baseline
+INITIAL_TOTAL_ENERGY = nxC * nyC * 5
 
-# ===============================
-# Gosper Glider Gun
-# ===============================
-gun = [
-    (1,5),(1,6),(2,5),(2,6),
-    (11,5),(11,6),(11,7),
-    (12,4),(12,8),
-    (13,3),(13,9),
-    (14,3),(14,9),
-    (15,6),
-    (16,4),(16,8),
-    (17,5),(17,6),(17,7),
-    (18,6),
-    (21,3),(21,4),(21,5),
-    (22,3),(22,4),(22,5),
-    (23,2),(23,6),
-    (25,1),(25,2),
-    (26,1),(26,2)
-]
-
-for dx, dy in gun:
-    grid[dx + 10, dy + 10].alive = 1
-
-
-# ===============================
 # Random symmetric seed
 # ===============================
 np.random.seed(1)
@@ -110,7 +93,6 @@ grid[20, 23].alive = 1
 
 pauseExect = False
 
-# ===============================
 # Main loop
 # ===============================
 while True:
@@ -123,6 +105,7 @@ while True:
     screen.fill(BLACK)
     time.sleep(0.001)
     t += 1
+    generation += 1
 
     hue = (t % 360) / 360.0
     r, g, b = colorsys.hsv_to_rgb(hue, 1.0, 1.0)
@@ -152,6 +135,7 @@ while True:
                 celY = int((posY - offset_y) / dimCH)
                 newGrid[celX, celY].alive = not mouseClick[2]
 
+    current_total_energy = 0
 
     for y in range(nyC):
         for x in range(nxC):
@@ -167,13 +151,39 @@ while True:
                     grid[(x    ) % nxC, (y + 1) % nyC].alive +
                     grid[(x + 1) % nxC, (y + 1) % nyC].alive
                 )
-
+                # Rules
                 if grid[x, y].alive == 0 and n_neigh == 3:
                     newGrid[x, y].alive = 1
                     newGrid[x, y].energy = 5
+                    newGrid[x, y].altruistic = (random.random() < altruism_rate)
 
                 elif grid[x, y].alive == 1 and (n_neigh < 2 or n_neigh > 3):
                     newGrid[x, y].alive = 0
+                
+                elif grid[x, y].alive == 1:
+                    newGrid[x, y].energy -= 1
+                    if newGrid[x, y].energy <= 0:
+                        newGrid[x, y].alive = 0
+                
+                if grid[x, y].altruistic:
+                    neighbors = []
+                    for dx in [-1, 0, 1]:
+                        for dy in [-1, 0, 1]:
+                            if dx == 0 and dy == 0:
+                                continue
+                            nx = (x + dx) % nxC
+                            ny = (y + dy) % nyC
+                            if newGrid[nx, ny].alive == 1:
+                                neighbors.append((nx, ny))
+                    if neighbors:
+                        nx, ny = random.choice(neighbors)
+                        newGrid[nx, ny].energy += 1
+                        newGrid[x, y].energy -= 1
+                        if newGrid[x, y].energy <= 0:
+                            newGrid[x, y].alive = 0
+            current_total_energy += max(newGrid[x, y].energy, 0)
+                
+
 
             poly = [
                 (offset_x + x * dimCW, offset_y + y * dimCH),
@@ -184,8 +194,30 @@ while True:
 
             if newGrid[x, y].alive == 0:
                 pygame.draw.polygon(screen, BLACK, poly, 1)
+
             else:
-                pygame.draw.polygon(screen, RAINBOW, poly, 0)
+                if newGrid[x, y].altruistic:
+                    pygame.draw.polygon(screen, WHITE, poly, 0)
+                else:
+                    pygame.draw.polygon(screen, RAINBOW, poly, 0)
+        
+    while current_total_energy < INITIAL_TOTAL_ENERGY:
+        rx = random.randrange(nxC)
+        ry = random.randrange(nyC)
+        if newGrid[rx, ry].alive == 1:
+            newGrid[rx, ry].energy += 1
+            current_total_energy += 1
+
+    altruistic_count = 0
+    for x in range(nxC):
+        for y in range(nyC):
+            if grid[x, y].alive and grid[x, y].altruistic:
+                altruistic_count += 1
+
+    gen_text = font.render(f"Generation: {generation}", True, WHITE)
+    screen.blit(gen_text, (20, 20))
+    gen_text = font.render(f"Altruism Count: {altruistic_count}", True, WHITE)
+    screen.blit(gen_text, (20, 40))
 
     pygame.display.flip()
     grid = newGrid
