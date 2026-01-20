@@ -3,6 +3,7 @@ import pygame
 import numpy as np
 import time
 import colorsys
+import matplotlib.pyplot as plt
 
 # Initialize Pygame
 pygame.init()
@@ -10,6 +11,8 @@ font = pygame.font.SysFont("monospace", 24)
 generation = 0
 altruistic_count = 0
 altruism_rate = 0.5
+altruism_history = []
+generation_history = []
 
 # Screen dimensions
 info = pygame.display.Info()
@@ -120,6 +123,12 @@ while True:
         if event.type == pygame.KEYDOWN:
             if event.key == pygame.K_SPACE:
                 pauseExect = not pauseExect
+            elif event.key == pygame.K_p:
+                plt.plot(generation_history, altruism_history)
+                plt.xlabel("Generation")
+                plt.ylabel("Altruistic Cell Count")
+                plt.title("Altruism Over Generations")
+                plt.show()
             elif event.key == pygame.K_ESCAPE:
                 pygame.quit()
                 quit()
@@ -213,6 +222,16 @@ while True:
         for y in range(nyC):
             if grid[x, y].alive and grid[x, y].altruistic:
                 altruistic_count += 1
+
+    alive_count = sum(
+    1 for x in range(nxC) for y in range(nyC)
+    if grid[x, y].alive)
+
+    altruist_fraction = altruistic_count / max(alive_count, 1)
+
+
+    altruism_history.append(altruistic_count)
+    generation_history.append(generation)
 
     gen_text = font.render(f"Generation: {generation}", True, WHITE)
     screen.blit(gen_text, (20, 20))
