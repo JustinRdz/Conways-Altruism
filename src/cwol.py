@@ -69,16 +69,16 @@ for x in range(nxC):
 # Energy baseline
 INITIAL_TOTAL_ENERGY = nxC * nyC * 5
 
-# Random symmetric seed
-# ===============================
-np.random.seed(1)
-for x in range(60, 140):
-    for y in range(60, 140):
-        if np.random.rand() > 0.85:
-            grid[x, y].alive = 1
-            grid[nxC-x-1, y].alive = 1
-            grid[x, nyC-y-1].alive = 1
-            grid[nxC-x-1, nyC-y-1].alive = 1
+# # Random symmetric seed
+# # ===============================
+# np.random.seed(1)
+# for x in range(60, 140):
+#     for y in range(60, 140):
+#         if np.random.rand() > 0.85:
+#             grid[x, y].alive = 1
+#             grid[nxC-x-1, y].alive = 1
+#             grid[x, nyC-y-1].alive = 1
+#             grid[nxC-x-1, nyC-y-1].alive = 1
 
 
 # Automata palo
@@ -162,19 +162,20 @@ while True:
                 )
                 # Rules
                 if grid[x, y].alive == 0 and n_neigh == 3:
-                    newGrid[x, y].alive = 1
-                    newGrid[x, y].energy = 5
-                    newGrid[x, y].altruistic = (random.random() < altruism_rate)
+                    newGrid[x, y] = Cell(alive=1, energy=5, altruistic=(random.random() < altruism_rate))
 
-                elif grid[x, y].alive == 1 and (n_neigh < 2 or n_neigh > 3):
-                    newGrid[x, y].alive = 0
+                # elif grid[x, y].alive == 1 and (n_neigh < 2 or n_neigh > 3):
+                #     newGrid[x, y].alive = 0
                 
+                # Energy decay and death
                 elif grid[x, y].alive == 1:
                     newGrid[x, y].energy -= 1
                     if newGrid[x, y].energy <= 0:
                         newGrid[x, y].alive = 0
+                        newGrid[x, y].energy = 0
                 
-                if grid[x, y].altruistic:
+                # Altruistic energy                
+                if grid[x, y].altruistic and grid[x, y].alive:
                     neighbors = []
                     for dx in [-1, 0, 1]:
                         for dy in [-1, 0, 1]:
@@ -182,14 +183,11 @@ while True:
                                 continue
                             nx = (x + dx) % nxC
                             ny = (y + dy) % nyC
-                            if newGrid[nx, ny].alive == 1:
-                                neighbors.append((nx, ny))
-                    if neighbors:
-                        nx, ny = random.choice(neighbors)
-                        newGrid[nx, ny].energy += 1
-                        newGrid[x, y].energy -= 1
-                        if newGrid[x, y].energy <= 0:
-                            newGrid[x, y].alive = 0
+                            if (grid[nx, ny].alive and newGrid[nx, ny].energy > newGrid[x, y].energy):
+                                newGrid[nx, ny].energy += 1
+                                newGrid[x, y].energy -= 1
+                                break
+
             current_total_energy += max(newGrid[x, y].energy, 0)
                 
 
