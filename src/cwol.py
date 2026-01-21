@@ -5,6 +5,18 @@ import time
 import colorsys
 import matplotlib.pyplot as plt
 
+def energy_to_color(energy, max_energy=10):
+    """
+    Maps energy to a color:
+    low energy -> red/dark
+    high energy -> green/bright
+    """
+    e = max(0, min(energy, max_energy)) / max_energy
+    hue = 0.33 * e        # 0 = red, 0.33 = green
+    value = 0.3 + 0.7 * e # avoid pure black
+    r, g, b = colorsys.hsv_to_rgb(hue, 1.0, value)
+    return (int(r * 255), int(g * 255), int(b * 255))
+
 # Initialize Pygame
 pygame.init()
 font = pygame.font.SysFont("monospace", 24)
@@ -19,10 +31,7 @@ info = pygame.display.Info()
 SCREEN_WIDTH = info.current_w
 SCREEN_HEIGHT = info.current_h
 
-screen = pygame.display.set_mode(
-    (SCREEN_WIDTH, SCREEN_HEIGHT),
-    pygame.FULLSCREEN
-)
+screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.FULLSCREEN)
 
 # Colors
 WHITE = (255, 255, 255)
@@ -191,7 +200,6 @@ while True:
             current_total_energy += max(newGrid[x, y].energy, 0)
                 
 
-
             poly = [
                 (offset_x + x * dimCW, offset_y + y * dimCH),
                 (offset_x + (x + 1) * dimCW, offset_y + y * dimCH),
@@ -201,13 +209,15 @@ while True:
 
             if newGrid[x, y].alive == 0:
                 pygame.draw.polygon(screen, BLACK, poly, 1)
-
             else:
+                color = energy_to_color(newGrid[x, y].energy)
+
+                pygame.draw.polygon(screen, color, poly, 0)
+
+                # Optional: altruistic cells get a white outline
                 if newGrid[x, y].altruistic:
-                    pygame.draw.polygon(screen, WHITE, poly, 0)
-                else:
-                    pygame.draw.polygon(screen, RAINBOW, poly, 0)
-        
+                    pygame.draw.polygon(screen, WHITE, poly, 1)
+
     while current_total_energy < INITIAL_TOTAL_ENERGY:
         rx = random.randrange(nxC)
         ry = random.randrange(nyC)
