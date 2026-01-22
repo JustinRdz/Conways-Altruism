@@ -11,6 +11,7 @@ def energy_to_color(energy, max_energy=10):
     low energy -> red/dark
     high energy -> green/bright
     """
+    
     e = max(0, min(energy, max_energy)) / max_energy
     hue = 0.33 * e        # 0 = red, 0.33 = green
     value = 0.3 + 0.7 * e # avoid pure black
